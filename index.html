@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+    <meta charset="utf-8">
+    <style>
+        body {
+            margin-left:30px;
+            background-color: #eee;
+            font-family: "Trebuchet MS", Helvetica, Arial, sans-serif;
+        }
+        #zLabel{
+            margin-left:70px;
+        }
+        .greyed {color: #ccc;}
+        .provinces {
+            fill: #fff;
+            stroke: #222;
+            stroke-linejoin: round;
+            stroke-opacity: 0.7;
+            stroke-width: 1px;
+            opacity: 0.8;
+        }
+
+        .provinces:hover{
+            stroke: #000;
+            stroke-width: 2px;
+            opacity:1;
+        }
+
+        .q0-9 { fill:rgb(247,251,255); }
+        .q1-9 { fill:rgb(222,235,247); }
+        .q2-9 { fill:rgb(198,219,239); }
+        .q3-9 { fill:rgb(158,202,225); }
+        .q4-9 { fill:rgb(107,174,214); }
+        .q5-9 { fill:rgb(66,146,198); }
+        .q6-9 { fill:rgb(33,113,181); }
+        .q7-9 { fill:rgb(8,81,156); }
+        .q8-9 { fill:rgb(8,48,107); }
+
+        .country {
+            fill: #ccc;
+            stroke: #333;
+            stroke-width: .5px;
+            stroke-linejoin: round;
+        }
+
+        .graticule {
+            fill: none;
+            stroke: #000;
+            stroke-opacity: .3;
+            stroke-width: .5px;
+        }
+
+        .graticule.outline {
+            stroke: #333;
+            stroke-opacity: 1;
+            stroke-width: 1.5px;
+        }
+
+    </style>
+</head>
+<body>
+<h2>Cambodia population density</h2>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="http://d3js.org/d3.geo.projection.v0.min.js"></script>
+<script src="http://d3js.org/queue.v1.min.js"></script>
+<script src="http://d3js.org/topojson.v1.min.js"></script>
+<script>
+
+    function numberWithCommas(x) {
+        return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    }
+
+    var width = 600,
+            height = 350;
+
+    var projection = d3.geo.mercator().center([108, 11.2]).scale(4000),
+            color = d3.scale.category20(),
+            graticule = d3.geo.graticule();
+
+    var path = d3.geo.path()
+            .projection(projection);
+
+    var svg = d3.select("body").append("svg")
+            .attr("width", width)
+            .attr("height", height);
+    var label = d3.select("body").append("div")
+            .attr("id","zLabel")
+            .classed("greyed",true)
+            .text("mouseover the maps to see province")
+            ;
+    var rateById = d3.map();
+
+    var zStats = d3.map();
+
+    var quantize = d3.scale.threshold()
+            .domain([5,15,30,80,150,200,300,500,5000])
+            .range(d3.range(9).map(function (i) {
+                return "q" + i + "-9";
+            }));
+
+    queue()
+            .defer(d3.json, "KHM_adm1.topo.json")
+            .defer(d3.tsv, "Census2008.tsv", function (d) {
+                rateById.set(parseInt(d.ID_1), +(d.DENSITY));
+                tmp = "[".concat(d.ID_1,'] ',d.PROV_NAME,' - ', numberWithCommas(d.TOTPOP),' people');
+
+                zStats.set(parseInt(d.ID_1), tmp);
+            })
+            .await(ready);
+
+    function ready(error, world) {
+        svg.append("g")
+                .selectAll("path")
+                .data(topojson.feature(world, world.objects['KHM_adm1.geo']).features)
+                .enter().append("path")
+                .attr("d", path)
+                .attr("class", function (d) {
+                    return quantize(rateById.get(d.id));
+                })
+                .classed("provinces", true)
+                .attr("province", function (d) {
+                    return zStats.get(d.id);
+                })
+                .attr("id", function (d) {
+                    return d.id;
+                })
+                .on('mouseover', function (d) {
+                    d3.select("div")
+                            .text(zStats.get(d.id))
+                            .classed("greyed", false)
+                })
+
+                .on("mouseout",  function(d) {
+                    d3.select("div")
+                            .text('mouseover the maps to see province')
+                            .classed("greyed", true)
+                })
+            ;
+    }
+
+</script>
+</body>
+</html>
